@@ -136,8 +136,8 @@ ecnij_pkg_setup()
 
 	CNIJFILTER_SRC+=( libs pstocanonij )
 	PRINTER_SRC+=( cnijfilter )
-	use_if_iuse usb && CNIJFILTER_SRC+=( backend )
-	use_if_iuse net && CNIJFILTER_SRC+=( backendnet )
+	in_iuse usb && use usb && CNIJFILTER_SRC+=( backend )
+	in_iuse net && use net && CNIJFILTER_SRC+=( backendnet )
 	if ! has usb; then
 		(( ${PV:0:1} >= 3 )) || ( (( ${PV:0:1} == 2 )) && (( ${PV:2:2} >= 80 )) ) &&
 			CNIJFILTER_SRC+=( backend )
@@ -145,10 +145,10 @@ ecnij_pkg_setup()
 	CNIJFILTER_SRC+=( cngpij )
 	if (( ${PV:0:1} == 4 )); then
 		PRINTER_SRC+=( lgmon2 )
-		use_if_iuse net && PRINTER_SRC+=( cnijnpr )
+		in_iuse net && use net && PRINTER_SRC+=( cnijnpr )
 	else
 		PRINTER_SRC+=( lgmon cngpijmon )
-		use_if_iuse net && PRINTER_SRC+=( cngpijmon/cnijnpr )
+		in_iuse net && use net && PRINTER_SRC+=( cngpijmon/cnijnpr )
 	fi
 
 	if use servicetools; then
@@ -188,9 +188,13 @@ ecnij_src_prepare()
 	debug-print-function ${FUNCNAME} "${@}"
 	local -a DIRS
 
-	[[ "${PATCHES}" ]] && epatch "${PATCHES[@]}"
-	epatch_user
-
+	if [[ $(declare -p PATCHES 2>/dev/null) == "declare -a"* ]]; then
+		[[ -n ${PATCHES[@]} ]] && eapply "${PATCHES[@]}"
+	else
+		[[ -n ${PATCHES} ]] && eapply ${PATCHES}
+	fi
+	eapply_user
+	
 	DIRS=("${CNIJFILTER_SRC[@]}")
 	use cups && dir_src_command "eautoreconf"
 
@@ -294,7 +298,7 @@ ecnij_src_install()
 			insinto /usr/share/cups/model
 			doins ppd/canon${pr}.ppd
 
-			if use_if_iuse doc; then
+			if in_iuse doc && use doc; then
 			for lingua in ${LINGUAS}; do
 				lingua="${lingua^^[a-z]}"
 				[[ -f lproptions/lproptions-${pr}-${PV}${lingua}.txt ]] &&
@@ -304,7 +308,7 @@ ecnij_src_install()
 		fi
 	done
 
-	if use cups && use_if_iuse net; then
+	if use cups && in_iuse net && use net; then
 		pushd com/libs_bin${abi_lib} || die
 		for lib in lib*.so; do
 			[[ -L ${lib} ]] && continue ||
@@ -323,7 +327,7 @@ ecnij_src_install()
 		mv "${ED}"/usr/share/{cmdtocanonij,${PN}} || die
 	fi
 
-	if ${lingua} || use_if_iuse net; then
+	if ${lingua} || ( in_iuse net && use net ); then
 	for lingua in ${LINGUAS}; do
 		lingua="${lingua^^[a-z]}"
 		license=LICENSE-${PN}-${PV}${lingua}.txt
